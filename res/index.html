@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&icon_names=settings" />
+</head>
+
+<body>
+    <div id="main_grid">
+        <div id="header">
+            <div>
+                <h1 style="margin: 0px;">User</h1>
+                <div id="status" style="display: flex; align-items: center;">
+                    <div id="circle" style="background: lightcoral;" ></div>
+                    <h2 style="margin: 0px; margin-left: 4px;">Offline</h2>
+                </div>
+            </div>
+            <div style="display: flex; align-items: center;" >
+                <span class="material-symbols-outlined" style="font-size: 40px;">
+                    settings
+                </span>
+            </div>
+        </div>
+        <div id="chat" style="color: darkgray;">
+            <div style="height: 100%;" ></div>
+            <!-- <div class="message">
+                <div class="user_label">
+                    <h2 class="user_name">User</h2>
+                    <h3 class="message_time">10:38:07</h3>
+                </div>
+                <h2 class="message_text">test long message to display</h2>
+            </div> -->
+        </div>
+        <div id="footer">
+            <textarea name="message_text" id="message_text"></textarea>
+            <button onclick="send_message()">></button>
+        </div>
+    </div>
+</body>
+
+<script>
+    const wsUrl = new URL(document.location);
+    wsUrl.protocol = wsUrl.protocol === 'https:' ? 'wss:' : 'ws:';
+    wsUrl.pathname = '/ws';
+
+    let ws;
+    let reconnectTimeout;
+
+    const [status_light, status_text] = document.getElementById("status").children;
+    const textarea = document.getElementById("message_text");
+
+    textarea.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
+            send_message();
+        }
+    });
+
+    function send_message() {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            let message = {user: "User", text: textarea.value};
+            textarea.value = "";
+            ws.send(JSON.stringify(message));
+        } else {
+            alert("Cannot send message: you are offline.");
+        }
+    }
+
+
+    function connect_to_websocket() {
+        clearTimeout(reconnectTimeout);
+
+        ws = new WebSocket(wsUrl.href);
+
+        ws.addEventListener('open', () => {
+            console.log('Successfully connected to the WebSocket server!');
+            status_light.style.background = "lightgreen";
+            status_text.textContent = "Online";
+        });
+
+        ws.addEventListener('close', () => {
+            console.log('Disconnected from the server. Attempting to reconnect');
+            status_light.style.background = "lightcoral";
+            status_text.textContent = "Offline";
+            reconnectTimeout = setTimeout(connect_to_websocket, 1000);
+        });
+
+        ws.addEventListener("message", (socket_message) => {
+            let message = JSON.parse(socket_message.data);
+            add_new_message(message);
+            scroll_to_end();
+            console.log(message.text)
+        });
+
+        ws.addEventListener('error', (error) => {
+            console.error('WebSocket Error: ', error);
+        });
+    }
+
+    function add_new_message(message) {
+        let message_holder = document.createElement("div");
+        message_holder.className = "message";
+
+            let user_label = document.createElement("div");
+            user_label.className = "user_label"
+
+                let user_name = document.createElement("h2");
+                user_name.textContent = message.user;
+                user_name.className = "user_name";
+                
+                let message_time = document.createElement("h3");
+                message_time.textContent = "00:00:00";
+                message_time.className = "message_time";
+            
+            user_label.appendChild(user_name);
+            user_label.appendChild(message_time);
+
+            let message_text = document.createElement("h2");
+            message_text.textContent = message.text;
+            message_text.className = "message_text"
+        
+        message_holder.appendChild(user_label);
+        message_holder.appendChild(message_text);
+
+        document.getElementById("chat").appendChild(message_holder);
+    }
+
+    function scroll_to_end() {
+        let chat = document.getElementById("chat");
+        chat.scrollTo({
+            top: chat.scrollHeight,
+            behavior: 'smooth'
+        });
+    }
+
+    connect_to_websocket();
+</script>
+
+</html>
