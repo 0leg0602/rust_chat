@@ -3,8 +3,16 @@ use std::{collections::HashMap, sync::{Arc, atomic::{AtomicUsize, Ordering}}};
 use axum::{Router, extract::{State, WebSocketUpgrade, ws::{Message, WebSocket}}, response::{Html, IntoResponse}, routing::get};
 
 use futures_util::{SinkExt, StreamExt, lock::Mutex, stream::SplitSink};
+use serde::{Deserialize, Serialize};
 
 static NEXT_CLIENT_ID: AtomicUsize = AtomicUsize::new(1);
+
+#[derive(Serialize, Deserialize, Debug)]
+struct UserMessage {
+    user: String,
+    text: String,
+    time: Option<String>,
+}
 
 #[tokio::main]
 async fn main() {
@@ -69,15 +77,30 @@ async fn handle_socket(socket: WebSocket, State(clients): State<Arc<Mutex<HashMa
                     let mut clients_guard = clients.lock().await;
                     println!("there a lot of you: {}", clients_guard.len());
 
-                    
-                    let message = Message::Text(text); 
-                    for (i,  client) in clients_guard.iter_mut() {
-                        println!("Sending a message to {}", i);
-                        let result = client.send(message.clone());
-                        if result.await.is_err() {
-                            println!("Cound not send");
+                    if let Ok(mut original_message) = serde_json::from_str::<UserMessage>(&text.to_string()) {
+                        let now = chrono::Local::now();
+                        let formated_time = now.format("%H:%M:%S").to_string();
+                        original_message.time = Some(formated_time);
+                                                
+                        if let Ok(message_string) = serde_json::to_string(&original_message) {
+                            let message = Message::Text(message_string.into());
+    
+                            for (i,  client) in clients_guard.iter_mut() {
+                                println!("Sending a message to {}", i);
+                                let result = client.send(message.clone());
+                                if result.await.is_err() {
+                                    println!("Cound not send");
+                                }
+                            }
+                        } else {
+                            println!("Could not convert to text");
                         }
+
+
+                    } else {
+                        println!("Could not parse the message")
                     }
+
 
                     drop(clients_guard);
                 }
