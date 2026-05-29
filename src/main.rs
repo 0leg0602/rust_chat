@@ -12,6 +12,7 @@ struct UserMessage {
     user: String,
     text: String,
     time: Option<String>,
+    user_id: Option<usize>,
 }
 
 #[tokio::main]
@@ -81,6 +82,7 @@ async fn handle_socket(socket: WebSocket, State(clients): State<Arc<Mutex<HashMa
                         let now = chrono::Local::now();
                         let formated_time = now.format("%H:%M:%S").to_string();
                         original_message.time = Some(formated_time);
+                        original_message.user_id = Some(current_client_id);
                                                 
                         if let Ok(message_string) = serde_json::to_string(&original_message) {
                             let message = Message::Text(message_string.into());

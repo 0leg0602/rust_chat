@@ -13,15 +13,18 @@
 <body>
     <div id="main_grid">
         <div id="header">
-            <div>
-                <h1 style="margin: 0px;">User</h1>
-                <div id="status" style="display: flex; align-items: center;">
-                    <div id="circle" style="background: lightcoral;" ></div>
-                    <h2 style="margin: 0px; margin-left: 4px;">Offline</h2>
+            <div style="display: flex;" >
+                <div>
+                    <h1 id="user_name_label" style="margin: 0px;">noname</h1>
+                    <div id="status" style="display: flex; align-items: center;">
+                        <div id="circle" style="background: lightcoral;" ></div>
+                        <h2 style="margin: 0px; margin-left: 4px;">Offline</h2>
+                    </div>
                 </div>
+                <!-- <button style="margin-left: 20px;" onclick="toggle_users_list()" >list users</button> -->
             </div>
             <div style="display: flex; align-items: center;" >
-                <span class="material-symbols-outlined" style="font-size: 40px;">
+                <span id="settings-button" class="material-symbols-outlined" onclick="toggle_settings()">
                     settings
                 </span>
             </div>
@@ -41,6 +44,27 @@
             <button onclick="send_message()">></button>
         </div>
     </div>
+
+    <div id="settings-menu" class="menu" >
+        <button style="position: absolute; top: 0; right: 0;" onclick="toggle_settings()">close</button>
+        <h1 style="margin: 0px;">Settings:</h1>
+        <div class="vr" ></div>
+        <div class="setting">
+            <p class="setting-name" >user name:</p>
+            <textarea name="user_name_input" id="user_name_input"></textarea>
+            <button onclick="set_user_name()" >set</button>
+        </div>
+    </div>
+
+    <div id="users_list" class="menu" >
+        <button style="position: absolute; top: 0; right: 0;" onclick="toggle_users_list()">close</button>
+        <button style="position: absolute; top: 0; left: 0;" onclick="create_user_list_table()">fetch</button>
+        <h1 style="margin: 0px;">Users:</h1>
+        <div class="vr" ></div>
+        <div id="user_list_table_holder" style="max-height: 65vh; overflow-y: scroll;"></div>
+    </div>
+
+
 </body>
 
 <script>
@@ -51,9 +75,15 @@
     let ws;
     let reconnectTimeout;
 
+    let user_name = "noname";
+    let is_settings_menu_open = false;
+    let is_user_list_open = false;
+
+    
     const [status_light, status_text] = document.getElementById("status").children;
     const textarea = document.getElementById("message_text");
-
+    const user_name_input = document.getElementById("user_name_input");
+    
     textarea.addEventListener('keydown', (event) => {
         if (event.key === 'Enter' && !event.shiftKey) {
             event.preventDefault();
@@ -61,9 +91,16 @@
         }
     });
 
+    user_name_input.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
+            set_user_name();
+        }
+    });
+
     function send_message() {
         if (ws && ws.readyState === WebSocket.OPEN) {
-            let message = {user: "User", text: textarea.value};
+            let message = {user: user_name, text: textarea.value};
             textarea.value = "";
             ws.send(JSON.stringify(message));
         } else {
@@ -109,23 +146,49 @@
             let user_label = document.createElement("div");
             user_label.className = "user_label"
 
-                let user_name = document.createElement("h2");
-                user_name.textContent = message.user;
-                user_name.className = "user_name";
-                
-                let message_time = document.createElement("h3");
-                message_time.textContent = message.time;
-                message_time.className = "message_time";
-            
-            user_label.appendChild(user_name);
-            user_label.appendChild(message_time);
+                let user_name_label = document.createElement("h2");
+                user_name_label.textContent = message.user;
+                user_name_label.className = "user_name";
 
-            let message_text = document.createElement("h2");
-            message_text.textContent = message.text;
-            message_text.className = "message_text"
+                    let user_id_label = document.createElement("span");
+                    user_id_label.textContent = "#" + message.user_id;
+                    user_id_label.className = "user_id";
+                
+                user_name_label.appendChild(user_id_label);
+                
+                let message_time_label = document.createElement("h3");
+                message_time_label.textContent = message.time;
+                message_time_label.className = "message_time";
+            
+            user_label.appendChild(user_name_label);
+            user_label.appendChild(message_time_label);
+
+            let message_text_holder = document.createElement("div");
+
+            let message_text = message.text;
+            let regex = /(img<.*?>)/;
+            let text_parts = message_text.split(regex);
+
+            for (let element_i = 0; element_i < text_parts.length; element_i++) {
+                let element;
+                let element_text = text_parts[element_i];
+
+                if (regex.test(element_text)) {
+                    element = document.createElement("img");
+                    element.style = "height: 150px;";
+                    element.src = element_text.substring(4,element_text.length-1)
+                } else {
+                    element = document.createElement("h2");
+                    element.textContent = element_text;
+                }
+
+                message_text_holder.appendChild(element);
+                message_text_holder.className = "message_text"
+                
+            }
         
         message_holder.appendChild(user_label);
-        message_holder.appendChild(message_text);
+        message_holder.appendChild(message_text_holder);
 
         document.getElementById("chat").appendChild(message_holder);
     }
@@ -137,6 +200,49 @@
             behavior: 'smooth'
         });
     }
+
+    function toggle_settings() {
+        let settings_menu = document.getElementById("settings-menu");
+        is_settings_menu_open = toggle_menu(is_settings_menu_open, settings_menu);
+    }
+
+    function toggle_users_list() {
+        let users_list = document.getElementById("users_list");
+        is_user_list_open = toggle_menu(is_user_list_open, users_list);
+    }
+
+    function toggle_menu(menu_status, menu_element) {
+        if (menu_status) {
+            menu_element.style.transform = "translate(-50%, -200vh)";
+        } else {
+            menu_element.style.transform = "translate(-50%, -50%)";
+        }
+        return !menu_status;
+    }
+
+    function set_user_name() {
+        let user_name_label= document.getElementById("user_name_label");
+        user_name = user_name_input.value;
+        user_name_label.textContent = user_name;
+
+    }
+
+    // function create_user_list_table() {
+    //     let table_holder = document.getElementById("user_list_table_holder");
+
+    //         let table = document.createElement("table");
+    //         table.style = "padding: 20px;"
+    //             for (let i = 0; i < 10; i++) {
+    //                 let cell = document.createElement("tr");
+    //                     let text = document.createElement("p");
+    //                     text.textContent = "test1";
+    //                 cell.appendChild(text);
+    //                 table.appendChild(cell);
+    //             }
+            
+
+    //     table_holder.append(table);
+    // }
 
     connect_to_websocket();
 </script>
