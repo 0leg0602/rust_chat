@@ -75,7 +75,7 @@ button:active {
     align-items: center;
     width: min-content;
     height: min-content;
-    border: 1px dashed white;
+    border: 1px solid white;
 }
 
 .message {
@@ -104,7 +104,7 @@ button:active {
 .message_text {
     margin: 0px;
     margin-top: 5px;
-    border: 1px dashed white;
+    border: 1px solid white;
     padding: 5px;
 
     display: flex;
