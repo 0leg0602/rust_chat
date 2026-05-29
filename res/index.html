@@ -78,11 +78,13 @@
     let user_name = "noname";
     let is_settings_menu_open = false;
     let is_user_list_open = false;
+    let auto_scroll = true;
 
     
     const [status_light, status_text] = document.getElementById("status").children;
     const textarea = document.getElementById("message_text");
     const user_name_input = document.getElementById("user_name_input");
+    const chat = document.getElementById("chat");
     
     textarea.addEventListener('keydown', (event) => {
         if (event.key === 'Enter' && !event.shiftKey) {
@@ -95,6 +97,15 @@
         if (event.key === 'Enter' && !event.shiftKey) {
             event.preventDefault();
             set_user_name();
+        }
+    });
+
+    chat.addEventListener("scrollend", (event) => {
+        console.log(event);
+        if (chat.scrollTop >= chat.scrollTopMax - 30) {
+            auto_scroll = true;
+        } else {
+            auto_scroll = false;
         }
     });
 
@@ -130,7 +141,9 @@
         ws.addEventListener("message", (socket_message) => {
             let message = JSON.parse(socket_message.data);
             add_new_message(message);
-            scroll_to_end();
+            if (auto_scroll) {
+                scroll_to_end();
+            }
             console.log(message.text)
         });
 
@@ -194,7 +207,6 @@
     }
 
     function scroll_to_end() {
-        let chat = document.getElementById("chat");
         chat.scrollTo({
             top: chat.scrollHeight,
             behavior: 'smooth'
